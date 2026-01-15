@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FMEA Vision Pro</title>
+    <title>FMEA Vision Pro - Editor Completo</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- D3.js -->
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- D3.js (CDNJS) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
     
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -21,402 +21,202 @@
 
     <style>
         :root {
-            /* Cores de Nível para CSS */
-            --c-root: #3b82f6;
-            --c-sys: #10b981;
-            --c-sub: #06b6d4;
-            --c-comp: #8b5cf6;
-            --c-fail: #ec4899;
-            --c-cause: #f97316;
-            --c-task: #64748b;
+            --c-root: #3b82f6; --c-sys: #10b981; --c-sub: #06b6d4; --c-comp: #8b5cf6;
+            --c-fail: #ec4899; --c-cause: #f97316; --c-task: #64748b;
         }
-
         body { 
-            font-family: 'Inter', sans-serif; 
-            overflow: hidden; 
-            /* Fundo Rico e Vibrante */
-            background-color: #f3f4f6;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%),
-                radial-gradient(at 0% 100%, rgba(6, 182, 212, 0.1) 0px, transparent 50%);
+            font-family: 'Inter', sans-serif; overflow: hidden; background-color: #f3f4f6;
+            background-image: radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%), radial-gradient(at 0% 100%, rgba(6, 182, 212, 0.1) 0px, transparent 50%);
             color: #1e293b;
         }
-
-        /* --- Glassmorphism Premium --- */
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            box-shadow: 
-                0 4px 6px -1px rgba(0, 0, 0, 0.05), 
-                0 10px 15px -3px rgba(0, 0, 0, 0.05),
-                inset 0 0 0 1px rgba(255, 255, 255, 0.5); /* Inner border light */
-        }
-        
-        .glass-card {
-            background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .glass-card:hover {
-            transform: translateY(-2px);
-            background: rgba(255, 255, 255, 0.8);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
-        }
-
-        /* --- D3 Graph Styles --- */
-        
-        /* Links (Linhas) */
-        .link {
-            fill: none;
-            stroke: #94a3b8; 
-            stroke-width: 2px; /* Mais grossa para visibilidade */
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            opacity: 0.6;
-            transition: opacity 0.3s;
-        }
-        
+        /* Glassmorphism */
+        .glass-panel { background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.9); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), inset 0 0 0 1px rgba(255,255,255,0.6); }
+        .glass-input { background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(255, 255, 255, 0.8); backdrop-filter: blur(4px); transition: all 0.2s; }
+        .glass-input:focus { background: rgba(255, 255, 255, 0.95); border-color: #3b82f6; outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+        /* D3 Styles */
+        .link { fill: none; stroke: #94a3b8; stroke-width: 2px; stroke-linecap: round; opacity: 0.6; transition: opacity 0.3s; }
         .link.dimmed { opacity: 0.1; }
-
-        /* Nodes */
-        .node { cursor: pointer; }
-        .node.dimmed { opacity: 0.1; pointer-events: none; }
-
-        /* O Balão de Vidro do Nó */
-        .node rect.main-box {
-            fill: rgba(255, 255, 255, 0.85); /* Mais opaco para contraste */
-            stroke: rgba(255, 255, 255, 1);
-            stroke-width: 1.5px;
-            rx: 12; ry: 12;
-            /* Sombra suave colorida baseada no contexto */
-            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.08)); 
-            transition: all 0.3s ease;
-        }
-
-        .node:hover rect.main-box {
-            fill: #ffffff;
-            stroke: #3b82f6;
-            filter: drop-shadow(0 8px 20px rgba(59, 130, 246, 0.25)); /* Glow azul ao hover */
-            transform: scale(1.02); /* Leve zoom */
-        }
-
-        /* Texto */
-        .node text {
-            font-family: 'Inter', sans-serif;
-            font-size: 11px;
-            font-weight: 600;
-            fill: #1e293b; /* Dark slate */
-            pointer-events: none;
-            text-shadow: 0 1px 2px rgba(255,255,255,1);
-        }
-
-        /* Indicador de Expansão (+/-) */
-        .indicator-circle {
-            fill: #f1f5f9;
-            stroke: #cbd5e1;
-            stroke-width: 1.5px;
-            transition: all 0.2s;
-        }
-        .node:hover .indicator-circle {
-            fill: #3b82f6;
-            stroke: #2563eb;
-        }
-        .indicator-text {
-            font-size: 10px;
-            font-weight: 800;
-            fill: #64748b;
-            text-anchor: middle;
-            alignment-baseline: middle;
-            pointer-events: none;
-        }
+        .node { cursor: pointer; } .node.dimmed { opacity: 0.1; pointer-events: none; }
+        .node rect.main-box { fill: rgba(255, 255, 255, 0.9); stroke: rgba(255, 255, 255, 1); stroke-width: 1.5px; rx: 10; ry: 10; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.06)); transition: all 0.3s ease; }
+        .node:hover rect.main-box { fill: #ffffff; stroke: #3b82f6; filter: drop-shadow(0 8px 16px rgba(59, 130, 246, 0.2)); transform: scale(1.02); }
+        .node text { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; fill: #1e293b; pointer-events: none; text-shadow: 0 1px 2px rgba(255,255,255,0.8); }
+        .indicator-circle { fill: #f1f5f9; stroke: #cbd5e1; stroke-width: 1.5px; transition: all 0.2s; }
+        .node:hover .indicator-circle { fill: #3b82f6; stroke: #2563eb; }
+        .indicator-text { font-size: 10px; font-weight: 800; fill: #64748b; text-anchor: middle; alignment-baseline: middle; pointer-events: none; }
         .node:hover .indicator-text { fill: #ffffff; }
-
-        /* Color Strips (Indicadores de Nível) */
-        .node.level-root rect.color-strip { fill: var(--c-root); }      
-        .node.level-system rect.color-strip { fill: var(--c-sys); }    
-        .node.level-subsystem rect.color-strip { fill: var(--c-sub); } 
-        .node.level-component rect.color-strip { fill: var(--c-comp); } 
-        .node.level-failure rect.color-strip { fill: var(--c-fail); }   
-        .node.level-cause rect.color-strip { fill: var(--c-cause); }     
-        .node.level-task rect.color-strip { fill: var(--c-task); }      
-
-        /* Full Screen Drop Overlay */
-        #drag-overlay {
-            background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(10px);
-            z-index: 100;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
+        .node.level-root rect.color-strip { fill: var(--c-root); } .node.level-system rect.color-strip { fill: var(--c-sys); } .node.level-subsystem rect.color-strip { fill: var(--c-sub); } .node.level-component rect.color-strip { fill: var(--c-comp); } .node.level-failure rect.color-strip { fill: var(--c-fail); } .node.level-cause rect.color-strip { fill: var(--c-cause); } .node.level-task rect.color-strip { fill: var(--c-task); }
+        #drag-overlay { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); z-index: 100; pointer-events: none; opacity: 0; transition: opacity 0.3s; }
         body.dragging #drag-overlay { opacity: 1; pointer-events: all; }
-
-        /* Animations */
-        .animate-in { animation: fadeInUp 0.5s ease-out forwards; }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.4); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.7); }
-
-        /* Dock Buttons */
-        .dock-btn {
-            position: relative;
-            overflow: hidden;
-        }
-        .dock-btn::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(circle at center, rgba(255,255,255,0.8) 0%, transparent 70%);
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        .dock-btn:hover::after { opacity: 1; }
+        .animate-in { animation: fadeInUp 0.5s ease-out forwards; } @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.4); border-radius: 10px; } ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.7); }
+        .modal-overlay { background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(8px); }
+        .dock-btn { position: relative; overflow: hidden; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .dock-btn:hover { transform: translateY(-4px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); background: white; }
     </style>
 </head>
-<body class="h-screen flex flex-col relative selection:bg-indigo-100 selection:text-indigo-900">
+<body class="h-screen flex flex-col relative selection:bg-blue-100 selection:text-blue-900">
 
-    <!-- Drag Overlay -->
     <div id="drag-overlay" class="absolute inset-4 rounded-[2rem] border-4 border-dashed border-blue-400 flex flex-col items-center justify-center text-blue-600">
-        <div class="bg-white/80 p-8 rounded-full shadow-2xl backdrop-blur-xl animate-bounce">
+        <div class="bg-white/90 p-8 rounded-full shadow-2xl backdrop-blur-xl animate-bounce">
             <i data-lucide="upload-cloud" class="w-16 h-16"></i>
         </div>
         <h2 class="text-3xl font-bold mt-6 text-slate-800">Solte o arquivo aqui</h2>
         <p class="text-lg text-slate-500 mt-2 font-medium">Processamento instantâneo de FMEA</p>
     </div>
 
-    <!-- Header -->
     <header class="absolute top-4 left-6 right-6 h-20 glass-panel rounded-2xl z-30 flex justify-between items-center px-8 transition-all duration-500" id="main-header">
         <div class="flex items-center gap-5">
-            <div class="w-12 h-12 bg-gradient-to-tr from-blue-600 to-violet-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/25 ring-1 ring-white/50">
+            <div class="w-12 h-12 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/25 ring-1 ring-white/50">
                 <i data-lucide="network" class="w-6 h-6"></i>
             </div>
             <div>
                 <h1 class="font-bold text-slate-800 text-xl tracking-tight">FMEA Vision <span class="text-blue-600">.Pro</span></h1>
-                <p class="text-xs text-slate-500 font-medium tracking-wide mt-0.5">Ferramenta Executiva de Análise de Risco</p>
+                <p class="text-xs text-slate-500 font-medium tracking-wide mt-0.5">Editor & Visualizador Executivo</p>
             </div>
-
             <div id="sheet-selector-wrapper" class="hidden ml-8 flex items-center gap-3 bg-slate-100/50 p-1.5 px-4 rounded-full border border-white shadow-sm hover:bg-white/80 transition-all">
                 <i data-lucide="layers" class="w-4 h-4 text-slate-400"></i>
-                <select id="sheetSelector" class="bg-transparent text-xs font-bold text-slate-600 outline-none cursor-pointer min-w-[120px] uppercase tracking-wide">
-                </select>
+                <select id="sheetSelector" class="bg-transparent text-xs font-bold text-slate-600 outline-none cursor-pointer min-w-[120px] uppercase tracking-wide"></select>
             </div>
         </div>
-
-        <!-- Botão Isolar / Carregar -->
-        <div class="flex items-center gap-4">
-             <!-- Banner Foco -->
-            <div id="focus-banner" class="hidden flex items-center gap-3 bg-slate-900/90 text-white px-5 py-2.5 rounded-full shadow-xl backdrop-blur-md border border-white/10 animate-in">
+        <div class="flex items-center gap-3">
+            <div id="focus-banner" class="hidden flex items-center gap-3 bg-slate-900/90 text-white px-5 py-2.5 rounded-full shadow-xl backdrop-blur-md border border-white/10 animate-in mr-2">
                 <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
                 <span class="text-xs font-bold tracking-wider uppercase">Foco Ativo</span>
-                <button onclick="clearFocus()" class="ml-2 hover:bg-white/20 p-1.5 rounded-full transition-colors" title="Limpar Foco">
-                    <i data-lucide="x" class="w-3 h-3"></i>
-                </button>
+                <button onclick="clearFocus()" class="ml-2 hover:bg-white/20 p-1.5 rounded-full transition-colors"><i data-lucide="x" class="w-3 h-3"></i></button>
             </div>
-
+            <button onclick="exportToExcel()" class="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-500 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                <span>Exportar Excel</span>
+            </button>
             <div class="relative group">
                  <input type="file" id="fileUploader" accept=".csv, .xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                  <button class="flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 shadow-sm transition-all hover:shadow-md hover:border-blue-300 hover:text-blue-600">
                     <i data-lucide="upload" class="w-4 h-4"></i>
-                    <span>Novo Arquivo</span>
+                    <span>Carregar</span>
                  </button>
             </div>
         </div>
     </header>
 
-    <!-- Main -->
     <main class="flex-1 w-full h-full relative overflow-hidden">
-        
         <div id="tree-container" class="w-full h-full cursor-grab active:cursor-grabbing">
             <div id="empty-state" class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                 <div class="glass-panel p-10 rounded-[2.5rem] text-center max-w-lg mx-6 border border-white/60">
                     <div class="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-blue-600 shadow-inner">
                         <i data-lucide="layout-dashboard" class="w-10 h-10"></i>
                     </div>
-                    <h2 class="text-2xl font-bold text-slate-800 mb-3">Espaço de Trabalho Vazio</h2>
-                    <p class="text-slate-500 leading-relaxed font-medium">Arraste seu arquivo FMEA (.xlsx) para qualquer lugar da tela para começar a visualização imersiva.</p>
+                    <h2 class="text-2xl font-bold text-slate-800 mb-3">Espaço de Trabalho</h2>
+                    <p class="text-slate-500 leading-relaxed font-medium">Arraste seu arquivo FMEA (.xlsx) para começar.</p>
                 </div>
             </div>
         </div>
 
-        <!-- Dock de Controle -->
         <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 glass-panel px-4 py-3 rounded-2xl flex gap-3 z-40 shadow-2xl animate-in">
-            <!-- Níveis -->
             <div class="flex gap-2 pr-4 border-r border-slate-200/50">
-                <button class="dock-btn w-11 h-11 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors" onclick="expandToLevel(1)" title="Sistema">
-                    <span class="text-[9px] font-black tracking-tighter">SYS</span>
-                    <div class="w-1 h-1 rounded-full bg-emerald-500 mt-0.5 opacity-50"></div>
-                </button>
-                <button class="dock-btn w-11 h-11 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 transition-colors" onclick="expandToLevel(2)" title="Subsistema">
-                    <span class="text-[9px] font-black tracking-tighter">SUB</span>
-                    <div class="w-1 h-1 rounded-full bg-cyan-500 mt-0.5 opacity-50"></div>
-                </button>
-                <button class="dock-btn w-11 h-11 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors" onclick="expandToLevel(3)" title="Componente">
-                    <span class="text-[9px] font-black tracking-tighter">COM</span>
-                    <div class="w-1 h-1 rounded-full bg-violet-500 mt-0.5 opacity-50"></div>
-                </button>
-                <button class="dock-btn w-11 h-11 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-pink-600 hover:bg-pink-50 transition-colors" onclick="expandToLevel(4)" title="Falha">
-                    <span class="text-[9px] font-black tracking-tighter">MOD</span>
-                    <div class="w-1 h-1 rounded-full bg-pink-500 mt-0.5 opacity-50"></div>
-                </button>
-                <button class="dock-btn w-11 h-11 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-colors" onclick="expandToLevel(5)" title="Causa">
-                    <span class="text-[9px] font-black tracking-tighter">CAU</span>
-                    <div class="w-1 h-1 rounded-full bg-orange-500 mt-0.5 opacity-50"></div>
-                </button>
-                <button class="dock-btn w-11 h-11 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" onclick="expandToLevel(6)" title="Tarefa">
-                    <span class="text-[9px] font-black tracking-tighter">TSK</span>
-                    <div class="w-1 h-1 rounded-full bg-slate-500 mt-0.5 opacity-50"></div>
-                </button>
+                <button class="dock-btn w-11 h-11 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50" onclick="expandToLevel(1)"><span class="text-[9px] font-black">SYS</span><div class="w-1 h-1 rounded-full bg-emerald-500 mt-0.5 opacity-50"></div></button>
+                <button class="dock-btn w-11 h-11 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-cyan-600 hover:bg-cyan-50" onclick="expandToLevel(2)"><span class="text-[9px] font-black">SUB</span><div class="w-1 h-1 rounded-full bg-cyan-500 mt-0.5 opacity-50"></div></button>
+                <button class="dock-btn w-11 h-11 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-violet-600 hover:bg-violet-50" onclick="expandToLevel(3)"><span class="text-[9px] font-black">COM</span><div class="w-1 h-1 rounded-full bg-violet-500 mt-0.5 opacity-50"></div></button>
+                <button class="dock-btn w-11 h-11 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-pink-600 hover:bg-pink-50" onclick="expandToLevel(4)"><span class="text-[9px] font-black">MOD</span><div class="w-1 h-1 rounded-full bg-pink-500 mt-0.5 opacity-50"></div></button>
+                <button class="dock-btn w-11 h-11 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-orange-600 hover:bg-orange-50" onclick="expandToLevel(5)"><span class="text-[9px] font-black">CAU</span><div class="w-1 h-1 rounded-full bg-orange-500 mt-0.5 opacity-50"></div></button>
+                <button class="dock-btn w-11 h-11 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100" onclick="expandToLevel(6)"><span class="text-[9px] font-black">TSK</span><div class="w-1 h-1 rounded-full bg-slate-500 mt-0.5 opacity-50"></div></button>
             </div>
-            
-            <!-- Ações -->
             <div class="flex gap-2 pl-1">
-                <button class="dock-btn w-11 h-11 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors" onclick="expandAll()" title="Expandir Tudo">
-                    <i data-lucide="maximize" class="w-5 h-5"></i>
-                </button>
-                <button class="dock-btn w-11 h-11 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors" onclick="collapseAll()" title="Recolher Tudo">
-                    <i data-lucide="minimize" class="w-5 h-5"></i>
-                </button>
-                <button class="dock-btn w-11 h-11 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors" onclick="resetZoom()" title="Centralizar">
-                    <i data-lucide="focus" class="w-5 h-5"></i>
-                </button>
+                <button class="dock-btn w-11 h-11 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50" onclick="expandAll()"><i data-lucide="maximize" class="w-5 h-5"></i></button>
+                <button class="dock-btn w-11 h-11 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50" onclick="collapseAll()"><i data-lucide="minimize" class="w-5 h-5"></i></button>
+                <button class="dock-btn w-11 h-11 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50" onclick="resetZoom()"><i data-lucide="focus" class="w-5 h-5"></i></button>
             </div>
         </div>
 
-        <!-- Painel Lateral -->
-        <aside id="details-panel" class="absolute top-28 bottom-8 right-8 w-[400px] glass-panel rounded-3xl translate-x-[150%] transition-transform duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] z-50 flex flex-col shadow-2xl overflow-hidden border border-white/50">
-            <!-- Header -->
+        <aside id="details-panel" class="absolute top-28 bottom-8 right-8 w-[450px] glass-panel rounded-3xl translate-x-[150%] transition-transform duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] z-50 flex flex-col shadow-2xl overflow-hidden border border-white/50">
             <div class="p-6 border-b border-slate-100 bg-white/40 backdrop-blur-md flex justify-between items-start shrink-0">
                 <div class="flex-1 mr-4 overflow-hidden">
-                    <div id="panel-tag" class="inline-flex items-center px-2 py-1 rounded text-[10px] font-extrabold uppercase tracking-widest mb-2 bg-white/80 border border-white shadow-sm text-slate-500">
-                        INFO
-                    </div>
-                    <h3 id="panel-title" class="text-lg font-bold text-slate-900 leading-snug break-words">Titulo do Item</h3>
+                    <div id="panel-tag" class="inline-flex items-center px-2 py-1 rounded text-[10px] font-extrabold uppercase tracking-widest mb-2 bg-white/80 border border-white shadow-sm text-slate-500">INFO</div>
+                    <h3 id="panel-title" class="text-lg font-bold text-slate-900 leading-snug break-words">Titulo</h3>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="focusOnNode()" class="w-9 h-9 flex items-center justify-center rounded-full bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100" title="Isolar Ramo">
-                        <i data-lucide="crosshair" class="w-4 h-4"></i>
-                    </button>
-                    <button onclick="closePanel()" class="w-9 h-9 flex items-center justify-center rounded-full bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all shadow-sm border border-slate-100">
-                        <i data-lucide="x" class="w-5 h-5"></i>
-                    </button>
+                    <button onclick="addChildNode()" id="btn-add-child" class="w-9 h-9 flex items-center justify-center rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-emerald-100" title="Adicionar Filho"><i data-lucide="plus" class="w-5 h-5"></i></button>
+                    <button onclick="focusOnNode()" class="w-9 h-9 flex items-center justify-center rounded-full bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100" title="Isolar Ramo"><i data-lucide="crosshair" class="w-4 h-4"></i></button>
+                    <button onclick="closePanel()" class="w-9 h-9 flex items-center justify-center rounded-full bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all shadow-sm border border-slate-100"><i data-lucide="x" class="w-5 h-5"></i></button>
                 </div>
             </div>
-
-            <!-- Content -->
             <div class="flex-1 overflow-y-auto p-6 space-y-6 bg-white/20">
                 <div>
-                    <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 pl-1">Descrição Completa</h4>
-                    <div class="bg-white/70 p-5 rounded-2xl border border-white shadow-sm">
-                        <p id="panel-desc" class="text-sm text-slate-700 leading-relaxed font-medium">-</p>
-                    </div>
+                    <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 pl-1">Nome / Descrição</h4>
+                    <textarea id="edit-name" rows="3" class="w-full glass-input rounded-xl p-3 text-sm text-slate-700 font-medium resize-none" oninput="updateNodeData('name', this.value)"></textarea>
                 </div>
-
-                <div id="extra-details" class="space-y-5 hidden"></div>
-
+                <div id="extra-details" class="space-y-5"></div>
                 <div id="risk-metrics" class="hidden">
-                    <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 pl-1 flex items-center gap-2">
-                        <i data-lucide="activity" class="w-3 h-3"></i> Indicadores de Risco
-                    </h4>
-                    
-                    <div class="grid grid-cols-3 gap-3 mb-4">
-                        <div class="bg-rose-50/80 p-3 rounded-2xl text-center border border-rose-100 shadow-sm">
-                            <span class="block text-[9px] text-rose-400 font-extrabold uppercase mb-1">Severidade</span>
-                            <span id="val-sev" class="text-sm font-bold text-rose-700 leading-tight block break-words">-</span>
-                        </div>
-                        <div class="bg-amber-50/80 p-3 rounded-2xl text-center border border-amber-100 shadow-sm">
-                            <span class="block text-[9px] text-amber-400 font-extrabold uppercase mb-1">Ocorrência</span>
-                            <span id="val-occ" class="text-sm font-bold text-amber-700 leading-tight block break-words">-</span>
-                        </div>
-                        <div class="bg-sky-50/80 p-3 rounded-2xl text-center border border-sky-100 shadow-sm">
-                            <span class="block text-[9px] text-sky-400 font-extrabold uppercase mb-1">Detecção</span>
-                            <span id="val-det" class="text-sm font-bold text-sky-700 leading-tight block break-words">-</span>
-                        </div>
+                    <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 pl-1 flex items-center gap-2"><i data-lucide="activity" class="w-3 h-3"></i> Matriz de Risco</h4>
+                    <div class="grid grid-cols-1 gap-3 mb-4">
+                        <div class="glass-input p-3 rounded-2xl flex items-center justify-between"><span class="text-[10px] text-rose-400 font-extrabold uppercase">Severidade</span><select id="edit-sev" class="bg-transparent text-sm font-bold text-rose-700 text-right outline-none cursor-pointer w-full" onchange="updateRisk('sev', this.value)"></select></div>
+                        <div class="glass-input p-3 rounded-2xl flex items-center justify-between"><span class="text-[10px] text-amber-400 font-extrabold uppercase">Ocorrência</span><select id="edit-occ" class="bg-transparent text-sm font-bold text-amber-700 text-right outline-none cursor-pointer w-full" onchange="updateRisk('occ', this.value)"></select></div>
+                        <div class="glass-input p-3 rounded-2xl flex items-center justify-between"><span class="text-[10px] text-sky-400 font-extrabold uppercase">Detecção</span><select id="edit-det" class="bg-transparent text-sm font-bold text-sky-700 text-right outline-none cursor-pointer w-full" onchange="updateRisk('det', this.value)"></select></div>
                     </div>
-                    
                     <div class="relative overflow-hidden rounded-2xl bg-slate-900 p-5 text-white shadow-xl group">
                         <div class="absolute -right-6 -top-6 w-24 h-24 bg-blue-500 rounded-full blur-2xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
-                        <div class="relative z-10 flex justify-between items-center">
-                            <span class="text-xs font-bold uppercase tracking-widest text-slate-400">RPN Score</span>
-                            <span id="val-rpn" class="text-3xl font-black tracking-tight text-white">-</span>
-                        </div>
+                        <div class="relative z-10 flex justify-between items-center"><span class="text-xs font-bold uppercase tracking-widest text-slate-400">RPN Score</span><span id="val-rpn" class="text-3xl font-black tracking-tight text-white">-</span></div>
                     </div>
                 </div>
             </div>
         </aside>
-
     </main>
 
-    <!-- Tooltip -->
+    <div id="validation-modal" class="fixed inset-0 z-[100] modal-overlay hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden animate-in">
+            <div class="p-6 border-b border-slate-100 bg-rose-50 flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-600"><i data-lucide="alert-circle" class="w-6 h-6"></i></div>
+                <div><h3 class="text-lg font-bold text-slate-900">Dados Incompletos</h3><p class="text-xs text-slate-500 font-medium">Existem campos obrigatórios não preenchidos.</p></div>
+            </div>
+            <div class="p-6 max-h-[60vh] overflow-y-auto">
+                <p class="text-sm text-slate-600 mb-4">Verifique os seguintes itens:</p>
+                <ul id="error-list" class="space-y-2 text-xs text-slate-700 font-mono bg-slate-50 p-4 rounded-xl border border-slate-100"></ul>
+            </div>
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                <button onclick="closeModal()" class="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-200 transition-colors">Corrigir</button>
+                <button onclick="forceExport()" class="px-4 py-2 rounded-xl text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 transition-colors shadow-lg shadow-rose-200">Baixar Mesmo Assim</button>
+            </div>
+        </div>
+    </div>
+
     <div id="graph-tooltip" class="fixed bg-slate-800/90 backdrop-blur-md text-white text-xs px-4 py-2.5 rounded-xl shadow-2xl pointer-events-none opacity-0 z-[60] transform -translate-x-1/2 -translate-y-full transition-all duration-200 font-medium border border-white/10 max-w-xs text-center"></div>
 
     <script>
         lucide.createIcons();
 
-        // --- Configs ---
+        const OPTIONS = { Severity: ["VeryLowOrNone", "Minor", "Moderate", "Major", "Critical"], Occurrence: ["Improbable", "Remote", "Occasional", "Probable", "Frequent"], Detection: ["HighProbability", "ModerateProbability", "LowProbability", "RemoteProbability", "NearImpossible"], ScheduleType: ["TimeBased", "ConditionBased", "TpmOperatorBased", "FailureBased"], TaskType: ["Inspection", "Mechanical", "Adjust", "Substitution", "Replacement", "Overhaul", "NoAction", "Lubrication"] };
+        const RPN_VALUES = { "VeryLowOrNone": 1, "Minor": 2, "Moderate": 3, "Major": 4, "Critical": 5, "Improbable": 1, "Remote": 2, "Occasional": 3, "Probable": 4, "Frequent": 5, "HighProbability": 1, "ModerateProbability": 2, "LowProbability": 3, "RemoteProbability": 4, "NearImpossible": 5 };
+        const NEXT_LEVEL = { 'root': {level:'system', name:'Novo Sistema'}, 'system': {level:'subsystem', name:'Novo Subsistema'}, 'subsystem': {level:'component', name:'Novo Componente'}, 'component': {level:'failure', name:'Novo Modo de Falha'}, 'failure': {level:'cause', name:'Nova Causa'}, 'cause': {level:'task', name:'Nova Tarefa'}, 'task': null };
+        const LEVEL_LABELS = { 'system': 'Sistema', 'subsystem': 'Subsistema', 'component': 'Componente', 'failure': 'Modo de Falha', 'cause': 'Causa Raiz', 'task': 'Tarefa' };
+        
         let svg, g, tree, root;
-        let currentNode = null;
-        let focusNodeData = null;
-        let currentWorkbook = null;
-        let zoom;
-        const duration = 600; // Animação suave
-        let i = 0;
-
-        // D3 Tree Config
-        const NODE_HEIGHT = 46;
-        const NODE_MIN_WIDTH = 160; 
-        const CHAR_WIDTH = 7; 
-        const HORIZONTAL_SPACING = 380; 
+        let currentNode = null, focusNodeData = null, currentWorkbook = null, currentFileName = "fmea_data", zoom;
+        const duration = 600; let i = 0;
+        const NODE_HEIGHT = 46, NODE_MIN_WIDTH = 160, NODE_MAX_WIDTH = 400, CHAR_WIDTH = 7, HORIZONTAL_SPACING = 480;
 
         const COL_MAPPING = {
-            System: ['system', 'sistema'],
-            SubSystem: ['subsystem', 'subsistema', 'sub-sistema'],
-            Function: ['function', 'função', 'funcao'],
-            Component: ['component', 'componente'],
-            FailureMode: ['failuremode', 'modo de falha', 'failure mode', 'modofalha'],
-            Effects: ['effects', 'efeitos', 'efeito'],
-            Cause: ['cause', 'causa', 'causaraiz'],
-            Task: ['task', 'nome da tarefa', 'tarefa'],
-            TaskDescription: ['taskdescription', 'descrição da tarefa', 'descricao', 'description'],
-            ScheduleType: ['scheduletype', 'tipo de agendamento', 'agendamento'],
-            TaskType: ['tasktype', 'tipo de tarefa'],
-            Interval: ['interval', 'intervalo'],
-            Severity: ['severity', 'severidade'],
-            Occurrence: ['occurrence', 'ocorrência', 'ocorrencia'],
-            Detection: ['detection', 'detecção', 'deteccao'],
-            RPN: ['rpn']
+            StrategyNumber: ['strategy number', 'strategy'], System: ['system', 'sistema'], SubSystem: ['subsystem', 'subsistema', 'sub-sistema'],
+            Function: ['function', 'função', 'funcao'], PreparedBy: ['preparedby', 'elaborado'], Date: ['date', 'data'],
+            Component: ['component', 'componente'], FailureMode: ['failuremode', 'modo de falha'], Effects: ['effects', 'efeitos'],
+            Cause: ['cause', 'causa', 'causaraiz'], Severity: ['severity', 'severidade'], Occurrence: ['occurrence', 'ocorrência'], Detection: ['detection', 'detecção'], RPN: ['rpn'],
+            Task: ['task', 'nome da tarefa', 'tarefa'], TaskDescription: ['taskdescription', 'descrição', 'description'],
+            ScheduleType: ['scheduletype', 'tipo de agendamento', 'agendamento'], TaskType: ['tasktype', 'tipo de tarefa'], Interval: ['interval', 'intervalo'], AssignedDepartment: ['assigneddepartment', 'departamento']
         };
 
-        // --- Drag & Drop ---
         const body = document.body;
         const dragOverlay = document.getElementById('drag-overlay');
-
         ['dragenter', 'dragover'].forEach(e => document.addEventListener(e, (ev) => { ev.preventDefault(); body.classList.add('dragging'); }));
         ['dragleave', 'drop'].forEach(e => dragOverlay.addEventListener(e, (ev) => { ev.preventDefault(); if(e==='drop' || ev.target===dragOverlay) body.classList.remove('dragging'); }));
         document.addEventListener('drop', (e) => { e.preventDefault(); body.classList.remove('dragging'); if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
         document.getElementById('fileUploader').addEventListener('change', (e) => { if(e.target.files.length) handleFile(e.target.files[0]); });
 
-        // --- Processing ---
         function handleFile(file) {
-            document.getElementById('empty-state').classList.add('hidden');
-            d3.select("#tree-container svg").remove();
-            
+            if (typeof d3 === 'undefined') { alert("Erro: D3.js não carregado."); return; }
+            document.getElementById('empty-state').classList.add('hidden'); d3.select("#tree-container svg").remove();
+            currentFileName = file.name.split('.')[0];
             const ext = file.name.split('.').pop().toLowerCase();
-            if (ext === 'csv') {
-                Papa.parse(file, { header: false, skipEmptyLines: false, complete: res => processData(res.data, file.name) });
-            } else if (['xlsx', 'xls', 'xlsm'].includes(ext)) {
+            if (ext === 'csv') Papa.parse(file, { header: false, skipEmptyLines: false, complete: res => processData(res.data, file.name) });
+            else if (['xlsx', 'xls', 'xlsm'].includes(ext)) {
+                if (typeof XLSX === 'undefined') { alert("Erro: SheetJS não carregado."); return; }
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const data = new Uint8Array(e.target.result);
@@ -429,16 +229,9 @@
         }
 
         function setupSheetSelector(sheets, fileName) {
-            const wrapper = document.getElementById('sheet-selector-wrapper');
-            const select = document.getElementById('sheetSelector');
-            wrapper.classList.remove('hidden');
-            select.innerHTML = '';
-            sheets.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s;
-                opt.innerText = s;
-                select.appendChild(opt);
-            });
+            const wrapper = document.getElementById('sheet-selector-wrapper'); const select = document.getElementById('sheetSelector');
+            wrapper.classList.remove('hidden'); select.innerHTML = '';
+            sheets.forEach(s => { const opt = document.createElement('option'); opt.value = s; opt.innerText = s; select.appendChild(opt); });
             select.onchange = (e) => processExcelSheet(e.target.value, fileName);
         }
 
@@ -452,29 +245,27 @@
             if (!rawData || rawData.length < 4) { alert("Arquivo inválido."); return; }
             const headers = rawData[0].map(h => h ? String(h).trim().toLowerCase() : "");
             const rows = rawData.slice(3);
-            const map = {};
-            for (const key in COL_MAPPING) map[key] = headers.findIndex(h => COL_MAPPING[key].some(k => h.includes(k)));
-            
+            const map = {}; for (const key in COL_MAPPING) map[key] = headers.findIndex(h => COL_MAPPING[key].some(k => h.includes(k)));
             if (map.System === -1) {
-                map.System = 1; map.SubSystem = 2; map.Function = 3; map.Component = 6; map.FailureMode = 7; 
-                map.Effects = 8; map.Cause = 9; map.Severity = 10; map.Occurrence = 11; map.Detection = 12; 
-                map.RPN = 13; map.Task = 14; map.TaskDescription = 15; map.ScheduleType = 16; map.TaskType = 17; map.Interval = 18;
+                map.StrategyNumber=0; map.System=1; map.SubSystem=2; map.Function=3; map.PreparedBy=4; map.Date=5; map.Component=6; map.FailureMode=7; map.Effects=8;
+                map.Cause=9; map.Severity=10; map.Occurrence=11; map.Detection=12; map.RPN=13; map.Task=14; map.TaskDescription=15; map.ScheduleType=16; map.TaskType=17; map.Interval=18; map.AssignedDepartment=19;
             }
-
-            let last = { System: "?", SubSystem: "?", Component: "?", FailureMode: "?", Cause: "?" };
+            let last = { System: "?", SubSystem: "?", Component: "?", FailureMode: "?", Cause: "?", StrategyNumber: "", PreparedBy: "", Date: "" };
             const hierarchy = { name: rootName, level: 'root', children: [] };
 
             rows.forEach(row => {
                 const get = (idx) => (idx > -1 && row[idx] !== undefined) ? String(row[idx]).trim() : "";
-                
                 let sys = get(map.System) || last.System;
                 let sub = get(map.SubSystem) || (map.SubSystem > -1 ? last.SubSystem : "Geral");
                 let comp = get(map.Component) || last.Component;
                 let fail = get(map.FailureMode) || last.FailureMode;
                 let cause = get(map.Cause) || last.Cause;
                 let task = get(map.Task);
+                let strat = get(map.StrategyNumber) || last.StrategyNumber;
+                let prep = get(map.PreparedBy) || last.PreparedBy;
+                let date = get(map.Date) || last.Date;
 
-                if(get(map.System)) last.System = sys;
+                if(get(map.System)) { last.System = sys; last.StrategyNumber = strat; last.PreparedBy = prep; last.Date = date; }
                 if(get(map.SubSystem)) last.SubSystem = sub;
                 if(get(map.Component)) last.Component = comp;
                 if(get(map.FailureMode)) last.FailureMode = fail;
@@ -483,22 +274,21 @@
                 if (sys === "?" && comp === "?") return;
 
                 let sysNode = findOrAdd(hierarchy, sys, 'system');
+                if(!sysNode.meta) sysNode.meta = { strategy: strat, prepared: prep, date: date };
                 let subNode = findOrAdd(sysNode, sub, 'subsystem');
                 if(get(map.Function) && !subNode.function) subNode.function = get(map.Function);
                 let compNode = findOrAdd(subNode, comp, 'component');
                 let failNode = findOrAdd(compNode, fail, 'failure');
                 if(get(map.Effects) && !failNode.effects) failNode.effects = get(map.Effects);
-                
                 let causeNode = failNode.children.find(c => c.name === cause);
                 if (!causeNode) {
                     causeNode = { name: cause, level: 'cause', metrics: { sev: get(map.Severity), occ: get(map.Occurrence), det: get(map.Detection), rpn: get(map.RPN) }, children: [] };
                     failNode.children.push(causeNode);
                 }
                 if (task) {
-                    causeNode.children.push({ name: task, level: 'task', taskDetails: { description: get(map.TaskDescription), schedule: get(map.ScheduleType), type: get(map.TaskType), interval: get(map.Interval) }, children: null });
+                    causeNode.children.push({ name: task, level: 'task', taskDetails: { description: get(map.TaskDescription), schedule: get(map.ScheduleType), type: get(map.TaskType), interval: get(map.Interval), department: get(map.AssignedDepartment) }, children: null });
                 }
             });
-
             initTree(hierarchy);
         }
 
@@ -508,151 +298,65 @@
             return node;
         }
 
-        // --- D3 Init ---
         function initTree(data) {
             const container = document.getElementById('tree-container');
-            const w = container.clientWidth;
-            const h = container.clientHeight;
+            const w = container.clientWidth; const h = container.clientHeight;
             d3.select("#tree-container svg").remove();
-            
-            svg = d3.select("#tree-container").append("svg").attr("width", w).attr("height", h)
-                .call(d3.zoom().on("zoom", (e) => g.attr("transform", e.transform))).on("dblclick.zoom", null);
+            svg = d3.select("#tree-container").append("svg").attr("width", w).attr("height", h).call(d3.zoom().on("zoom", (e) => g.attr("transform", e.transform))).on("dblclick.zoom", null);
             g = svg.append("g").attr("transform", "translate(100,0)");
             zoom = d3.zoom().on("zoom", (e) => g.attr("transform", e.transform));
             svg.call(zoom);
-
             root = d3.hierarchy(data, d => d.children);
-            root.x0 = h / 2;
-            root.y0 = 0;
-
+            root.x0 = h / 2; root.y0 = 0;
             if(root.children) root.children.forEach(sys => { if(sys.children) sys.children.forEach(collapse); });
-            update(root);
-            resetZoom();
+            update(root); resetZoom();
         }
 
-        // --- D3 Update (Animation Logic Improved) ---
         function update(source) {
-            const levelWidth = HORIZONTAL_SPACING;
-            tree = d3.tree().nodeSize([60, levelWidth]);
+            const levelWidth = HORIZONTAL_SPACING; tree = d3.tree().nodeSize([60, levelWidth]);
             const treeData = tree(root);
-            const nodes = treeData.descendants();
-            const links = treeData.links();
-
+            const nodes = treeData.descendants(); const links = treeData.links();
             nodes.forEach(d => d.y = d.depth * HORIZONTAL_SPACING);
 
-            // --- Nodes ---
             const node = g.selectAll('g.node').data(nodes, d => d.id || (d.id = ++i));
+            const nodeEnter = node.enter().append('g').attr('class', d => `node level-${d.data.level} ${isDimmed(d) ? 'dimmed' : ''}`).attr("transform", d => `translate(${source.y0},${source.x0})`).on('click', click);
 
-            // Enter
-            const nodeEnter = node.enter().append('g')
-                .attr('class', d => `node level-${d.data.level} ${isDimmed(d) ? 'dimmed' : ''}`)
-                .attr("transform", d => `translate(${source.y0},${source.x0})`)
-                .on('click', click);
-
-            nodeEnter.append('rect').attr('class', 'main-box')
-                .attr('height', NODE_HEIGHT).attr('x', 0).attr('y', -NODE_HEIGHT / 2)
-                .attr('width', 0) // Start width 0 for transition
-                .transition().duration(duration)
-                .attr('width', d => Math.min(Math.max(NODE_MIN_WIDTH, (d.data.name ? d.data.name.length : 0) * CHAR_WIDTH + 30), 400));
-
-            nodeEnter.append('rect').attr('class', 'color-strip')
-                .attr('width', 5).attr('height', NODE_HEIGHT).attr('x', 0).attr('y', -NODE_HEIGHT / 2).attr('rx', 4)
-                .style('clip-path', 'inset(0px 0px 0px 0px round 4px 0px 0px 4px)');
-
-            nodeEnter.append('text').attr("dy", ".35em").attr("x", 16)
-                .style("opacity", 0) // Start transparent
-                .text(d => { const t = d.data.name||""; return t.length>55 ? t.substring(0,55)+"..." : t; })
+            nodeEnter.append('rect').attr('class', 'main-box').attr('height', NODE_HEIGHT).attr('x', 0).attr('y', -NODE_HEIGHT / 2).attr('width', 0)
+                .transition().duration(duration).attr('width', d => Math.min(Math.max(NODE_MIN_WIDTH, (d.data.name ? d.data.name.length : 0) * CHAR_WIDTH + 30), NODE_MAX_WIDTH));
+            nodeEnter.append('rect').attr('class', 'color-strip').attr('width', 5).attr('height', NODE_HEIGHT).attr('x', 0).attr('y', -NODE_HEIGHT / 2).attr('rx', 4).style('clip-path', 'inset(0px 0px 0px 0px round 4px 0px 0px 4px)');
+            nodeEnter.append('text').attr("dy", ".35em").attr("x", 16).style("opacity", 0)
+                .text(d => { const t = d.data.name||"[Sem Nome]"; const max = Math.floor((NODE_MAX_WIDTH - 40) / CHAR_WIDTH); return t.length>max ? t.substring(0,max)+"..." : t; })
                 .transition().duration(duration).style("opacity", 1);
-
-            const indicator = nodeEnter.append('g').attr('class', 'indicator-group')
-                .style('display', d => (d.children || d._children) ? 'block' : 'none');
+            
+            const indicator = nodeEnter.append('g').attr('class', 'indicator-group').style('display', d => (d.children || d._children) ? 'block' : 'none');
             indicator.append('circle').attr('class', 'indicator-circle').attr('r', 9);
             indicator.append('text').attr('class', 'indicator-text').attr('dy', 1).text('+');
 
-            // Update
-            const nodeUpdate = node.merge(nodeEnter).transition().duration(duration)
-                .attr("transform", d => `translate(${d.y},${d.x})`)
-                .attr('class', d => `node level-${d.data.level} ${isDimmed(d) ? 'dimmed' : ''}`);
-
-            nodeUpdate.select('rect.main-box')
-                .attr('width', d => Math.min(Math.max(NODE_MIN_WIDTH, (d.data.name ? d.data.name.length : 0) * CHAR_WIDTH + 30), 400));
-
-            nodeUpdate.select('.indicator-group')
-                .attr('transform', d => `translate(${Math.min(Math.max(NODE_MIN_WIDTH, (d.data.name ? d.data.name.length : 0) * CHAR_WIDTH + 30), 400)}, 0)`)
-                .style('display', d => (d.children || d._children) ? 'block' : 'none');
-            
+            const nodeMerge = node.merge(nodeEnter);
+            nodeMerge.select('text').text(d => { const t = d.data.name||"[Sem Nome]"; const max = Math.floor((NODE_MAX_WIDTH - 40) / CHAR_WIDTH); return t.length>max ? t.substring(0,max)+"..." : t; }).style("opacity", 1);
+            const nodeUpdate = nodeMerge.transition().duration(duration).attr("transform", d => `translate(${d.y},${d.x})`).attr('class', d => `node level-${d.data.level} ${isDimmed(d) ? 'dimmed' : ''}`);
+            nodeUpdate.select('rect.main-box').attr('width', d => Math.min(Math.max(NODE_MIN_WIDTH, (d.data.name ? d.data.name.length : 0) * CHAR_WIDTH + 30), NODE_MAX_WIDTH));
+            nodeUpdate.select('.indicator-group').attr('transform', d => `translate(${Math.min(Math.max(NODE_MIN_WIDTH, (d.data.name ? d.data.name.length : 0) * CHAR_WIDTH + 30), NODE_MAX_WIDTH)}, 0)`).style('display', d => (d.children || d._children) ? 'block' : 'none');
             nodeUpdate.select('.indicator-text').text(d => d._children ? "+" : "-");
 
-            // Exit
-            const nodeExit = node.exit().transition().duration(duration)
-                .attr("transform", d => `translate(${source.y},${source.x})`)
-                .remove();
-            nodeExit.select('rect.main-box').attr('width', 0);
-            nodeExit.select('text').style('opacity', 0);
-            nodeExit.select('.indicator-group').style('opacity', 0);
+            const nodeExit = node.exit().transition().duration(duration).attr("transform", d => `translate(${source.y},${source.x})`).remove();
+            nodeExit.select('rect.main-box').attr('width', 0); nodeExit.select('text').style('opacity', 0);
 
-            // --- Links (Improved Animation) ---
             const link = g.selectAll('path.link').data(links, d => d.target.id);
-
-            // Enter: Draw link starting from parent's previous position
-            const linkEnter = link.enter().insert('path', "g")
-                .attr("class", d => `link ${isLinkDimmed(d.target) ? 'dimmed' : ''}`)
-                .attr('d', d => {
-                    const o = {x: source.x0, y: source.y0};
-                    return diagonal(o, o); // Collapsed at parent
-                });
-
-            // Update: Transition to target's new position
-            link.merge(linkEnter).transition().duration(duration)
-                .attr('d', d => {
-                    const w = Math.min(Math.max(NODE_MIN_WIDTH, (d.source.data.name ? d.source.data.name.length : 0) * CHAR_WIDTH + 30), 400);
-                    return diagonalComplex(d.source, d.target, w);
-                })
-                .attr("class", d => `link ${isLinkDimmed(d.target) ? 'dimmed' : ''}`);
-
-            // Exit: Transition back to source's NEW position (collapsing)
-            link.exit().transition().duration(duration)
-                .attr('d', d => {
-                    const o = {x: source.x, y: source.y};
-                    return diagonal(o, o);
-                })
-                .remove();
-
-            // Stash positions
+            const linkEnter = link.enter().insert('path', "g").attr("class", d => `link ${isLinkDimmed(d.target) ? 'dimmed' : ''}`).attr('d', d => { const o = {x: source.x0, y: source.y0}; return diagonal(o, o); });
+            link.merge(linkEnter).transition().duration(duration).attr('d', d => { const w = Math.min(Math.max(NODE_MIN_WIDTH, (d.source.data.name ? d.source.data.name.length : 0) * CHAR_WIDTH + 30), NODE_MAX_WIDTH); return diagonalComplex(d.source, d.target, w); }).attr("class", d => `link ${isLinkDimmed(d.target) ? 'dimmed' : ''}`);
+            link.exit().transition().duration(duration).attr('d', d => { const o = {x: source.x, y: source.y}; return diagonal(o, o); }).remove();
             nodes.forEach(d => { d.x0 = d.x; d.y0 = d.y; });
         }
 
-        // --- Utils ---
-        function diagonalComplex(s, d, sWidth) {
-            const sourceX = s.y + sWidth; const sourceY = s.x;
-            const targetX = d.y; const targetY = d.x;
-            return `M ${sourceX} ${sourceY} C ${(sourceX + targetX) / 2} ${sourceY}, ${(sourceX + targetX) / 2} ${targetY}, ${targetX} ${targetY}`;
-        }
-        function diagonal(s, d) {
-             return `M ${s.y} ${s.x} C ${(s.y + d.y) / 2} ${s.x}, ${(s.y + d.y) / 2} ${d.x}, ${d.y} ${d.x}`;
-        }
-        function focusOnNode() {
-            if (!currentNode) return;
-            focusNodeData = currentNode;
-            closePanel();
-            document.getElementById('focus-banner').classList.remove('hidden');
-            expand(focusNodeData); update(root);
-            const w = document.getElementById('tree-container').clientWidth;
-            const h = document.getElementById('tree-container').clientHeight;
-            svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(-focusNodeData.y + w/2 - 200, -focusNodeData.x + h/2).scale(1));
-        }
+        function diagonalComplex(s, d, sWidth) { return `M ${s.y + sWidth} ${s.x} C ${(s.y + sWidth + d.y) / 2} ${s.x}, ${(s.y + sWidth + d.y) / 2} ${d.x}, ${d.y} ${d.x}`; }
+        function diagonal(s, d) { return `M ${s.y} ${s.x} C ${(s.y + d.y) / 2} ${s.x}, ${(s.y + d.y) / 2} ${d.x}, ${d.y} ${d.x}`; }
+        
+        function focusOnNode() { if (!currentNode) return; focusNodeData = currentNode; closePanel(); document.getElementById('focus-banner').classList.remove('hidden'); expand(focusNodeData); update(root); const w = document.getElementById('tree-container').clientWidth; const h = document.getElementById('tree-container').clientHeight; svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(-focusNodeData.y + w/2 - 200, -focusNodeData.x + h/2).scale(1)); }
         function clearFocus() { focusNodeData = null; document.getElementById('focus-banner').classList.add('hidden'); update(root); }
-        function isDimmed(d) {
-            if (!focusNodeData) return false;
-            if (d === focusNodeData || d.ancestors().includes(focusNodeData) || focusNodeData.ancestors().includes(d)) return false;
-            return true;
-        }
+        function isDimmed(d) { if (!focusNodeData) return false; if (d === focusNodeData || d.ancestors().includes(focusNodeData) || focusNodeData.ancestors().includes(d)) return false; return true; }
         function isLinkDimmed(t) { return isDimmed(t); }
-        function click(event, d) {
-            if (d.children) { d._children = d.children; d.children = null; } else { d.children = d._children; d._children = null; }
-            update(d); showDetails(d);
-            if (focusNodeData) update(root);
-        }
+        function click(event, d) { if (d.children) { d._children = d.children; d.children = null; } else { d.children = d._children; d._children = null; } update(d); showDetails(d); if (focusNodeData) update(root); }
         function expand(d) { if(d._children){d.children=d._children; d._children=null;} if(d.children)d.children.forEach(expand); }
         function collapse(d) { if(d.children){d._children=d.children; d._children.forEach(collapse); d.children=null;} }
         function expandToLevel(lvl) { if(!root)return; expand(root); root.each(d => { if(d.depth>=lvl) collapse(d); }); update(root); resetZoom(); }
@@ -660,37 +364,154 @@
         function collapseAll() { if(!root)return; if(root.children)root.children.forEach(collapse); update(root); resetZoom(); }
         function resetZoom() { if(!svg)return; const h = document.getElementById('tree-container').clientHeight; svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(80, h/2).scale(1)); }
 
-        // --- Panel ---
+        function addChildNode() {
+            if (!currentNode) return;
+            const parent = currentNode;
+            const config = NEXT_LEVEL[parent.data.level];
+            if (!config) { alert("Não é possível adicionar filhos a este nível."); return; }
+            const newNodeData = { name: config.name, level: config.level, children: [] };
+            if (config.level === 'subsystem') newNodeData.function = "Nova Função";
+            if (config.level === 'failure') newNodeData.effects = "Novos Efeitos";
+            if (config.level === 'cause') newNodeData.metrics = { sev: "VeryLowOrNone", occ: "Improbable", det: "HighProbability", rpn: 1 };
+            if (config.level === 'task') newNodeData.taskDetails = { description: "", schedule: "TimeBased", type: "Inspection", interval: "", department: "" };
+            if (!parent.children) parent.children = [];
+            if (parent._children) { parent.children = parent._children; parent._children = null; }
+            const newNode = d3.hierarchy(newNodeData); newNode.depth = parent.depth + 1; newNode.height = 0; newNode.parent = parent; 
+            parent.children.push(newNode); update(root); setTimeout(() => { showDetails(newNode); }, 100);
+        }
+
         function showDetails(d) {
             currentNode = d;
             const panel = document.getElementById('details-panel');
             panel.classList.remove('translate-x-[150%]');
             document.getElementById('panel-title').innerText = d.data.name;
-            document.getElementById('panel-desc').innerText = d.data.name;
+            document.getElementById('edit-name').value = d.data.name; 
             document.getElementById('panel-tag').innerText = d.data.level;
-            
-            const extra = document.getElementById('extra-details'); extra.innerHTML = ''; extra.classList.add('hidden');
+            const btnAdd = document.getElementById('btn-add-child');
+            if (NEXT_LEVEL[d.data.level]) { btnAdd.classList.remove('hidden'); btnAdd.title = `Adicionar ${LEVEL_LABELS[NEXT_LEVEL[d.data.level].level]}`; } else { btnAdd.classList.add('hidden'); }
+            const extra = document.getElementById('extra-details'); extra.innerHTML = ''; 
             let html = '';
-            if (d.data.level === 'subsystem' && d.data.function) html += mkCard('Função', d.data.function, 'settings');
-            if (d.data.level === 'failure' && d.data.effects) html += mkCard('Efeitos', d.data.effects, 'alert-triangle');
-            if (d.data.level === 'task' && d.data.taskDetails) {
-                const td = d.data.taskDetails;
-                if(td.description) html += mkCard('Descrição', td.description, 'file-text');
-                if(td.type || td.interval) html += `<div class="grid grid-cols-2 gap-3"><div class="glass-card p-3 rounded-2xl text-center"><div class="text-[9px] font-bold text-slate-400 uppercase">Tipo</div><div class="text-sm font-bold text-slate-700">${td.type||'-'}</div></div><div class="glass-card p-3 rounded-2xl text-center"><div class="text-[9px] font-bold text-slate-400 uppercase">Intervalo</div><div class="text-sm font-bold text-slate-700">${td.interval?td.interval+' dias':'-'}</div></div></div>`;
+            if (d.data.level === 'subsystem') html += mkInput('Função', d.data.function || '', 'settings', 'updateNodeData("function", this.value)');
+            if (d.data.level === 'failure') html += mkInput('Efeitos', d.data.effects || '', 'alert-triangle', 'updateNodeData("effects", this.value)');
+            if (d.data.level === 'task') {
+                const td = d.data.taskDetails || {};
+                html += mkInput('Descrição', td.description || '', 'file-text', 'updateTaskData("description", this.value)');
+                html += mkSelect('Tipo de Tarefa', OPTIONS.TaskType, td.type, 'updateTaskData("type", this.value)');
+                html += mkSelect('Agendamento', OPTIONS.ScheduleType, td.schedule, 'updateTaskData("schedule", this.value)');
+                html += mkInput('Intervalo (dias)', td.interval || '', 'clock', 'updateTaskData("interval", this.value)');
+                html += mkInput('Disciplina', td.department || '', 'users', 'updateTaskData("department", this.value)');
             }
-            if(html) { extra.innerHTML = html; extra.classList.remove('hidden'); lucide.createIcons(); }
-
+            extra.innerHTML = html; lucide.createIcons();
             const metrics = document.getElementById('risk-metrics');
-            if (d.data.level === 'cause' && d.data.metrics) {
+            if (d.data.level === 'cause') {
                 metrics.classList.remove('hidden');
-                document.getElementById('val-sev').innerText = d.data.metrics.sev || '-';
-                document.getElementById('val-occ').innerText = d.data.metrics.occ || '-';
-                document.getElementById('val-det').innerText = d.data.metrics.det || '-';
-                document.getElementById('val-rpn').innerText = d.data.metrics.rpn || '-';
+                populateSelect('edit-sev', OPTIONS.Severity, d.data.metrics.sev);
+                populateSelect('edit-occ', OPTIONS.Occurrence, d.data.metrics.occ);
+                populateSelect('edit-det', OPTIONS.Detection, d.data.metrics.det);
+                updateRPNDisplay(d.data.metrics);
             } else { metrics.classList.add('hidden'); }
         }
-        function mkCard(l, t, i) { return `<div class="glass-card p-5 rounded-2xl border border-white/50"><h5 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2"><i data-lucide="${i}" class="w-3 h-3"></i> ${l}</h5><p class="text-sm text-slate-700 leading-relaxed font-medium">${t}</p></div>`; }
+
+        function mkInput(label, value, icon, onInput) { return `<div class="glass-input p-3 rounded-2xl border border-white/40"><h5 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2"><i data-lucide="${icon}" class="w-3 h-3"></i> ${label}</h5><textarea rows="2" class="w-full bg-transparent text-sm text-slate-700 font-medium resize-none outline-none" oninput='${onInput}'>${value}</textarea></div>`; }
+        function mkSelect(label, options, value, onChange) { let opts = options.map(o => `<option value="${o}" ${o === value ? 'selected' : ''}>${o}</option>`).join(''); return `<div class="glass-input p-3 rounded-2xl border border-white/40 flex items-center justify-between mt-2"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${label}</span><select class="bg-transparent text-sm font-bold text-slate-700 text-right outline-none cursor-pointer w-1/2" onchange='${onChange}'>${opts}</select></div>`; }
+        function populateSelect(id, options, value) { const el = document.getElementById(id); el.innerHTML = options.map(o => `<option value="${o}" ${o === value ? 'selected' : ''}>${o}</option>`).join(''); }
+        function updateNodeData(field, val) { if (!currentNode) return; currentNode.data[field] = val; if(field === 'name') { document.getElementById('panel-title').innerText = val; update(root); } }
+        function updateTaskData(field, val) { if (!currentNode || !currentNode.data.taskDetails) return; currentNode.data.taskDetails[field] = val; }
+        function updateRisk(field, val) { if (!currentNode || !currentNode.data.metrics) return; currentNode.data.metrics[field] = val; const m = currentNode.data.metrics; m.rpn = (RPN_VALUES[m.sev]||0) * (RPN_VALUES[m.occ]||0) * (RPN_VALUES[m.det]||0); updateRPNDisplay(m); }
+        function updateRPNDisplay(m) { document.getElementById('val-rpn').innerText = m.rpn || '-'; }
         function closePanel() { document.getElementById('details-panel').classList.add('translate-x-[150%]'); }
+
+        // --- Export & Validation ---
+        let validationErrors = [];
+        function exportToExcel() {
+            validationErrors = []; validateTree(root);
+            if (validationErrors.length > 0) showValidationModal(); else generateExcel();
+        }
+        function validateTree(node, path = "") {
+            const name = node.data.name || "Sem Nome"; const currentPath = path ? `${path} > ${name}` : name;
+            if (node.data.level === 'system' && !node.data.name) validationErrors.push(`Sistema sem nome.`);
+            if (node.data.level === 'cause') { if(!node.data.metrics.sev) validationErrors.push(`${currentPath}: Severidade.`); if(!node.data.metrics.occ) validationErrors.push(`${currentPath}: Ocorrência.`); if(!node.data.metrics.det) validationErrors.push(`${currentPath}: Detecção.`); }
+            if (node.data.level === 'task') { const t = node.data.taskDetails; if(!t.type) validationErrors.push(`${currentPath}: Tipo Tarefa.`); if(!t.schedule) validationErrors.push(`${currentPath}: Agendamento.`); if(!t.interval) validationErrors.push(`${currentPath}: Intervalo.`); }
+            const children = (node.children || []).concat(node._children || []);
+            children.forEach(child => validateTree(child, currentPath));
+        }
+        function showValidationModal() {
+            document.getElementById('error-list').innerHTML = validationErrors.slice(0, 8).map(e => `<li class="text-rose-600">• ${e}</li>`).join('') + (validationErrors.length > 8 ? `<li class="italic text-slate-400">...mais ${validationErrors.length - 8}</li>` : '');
+            document.getElementById('validation-modal').classList.remove('hidden');
+        }
+        function closeModal() { document.getElementById('validation-modal').classList.add('hidden'); }
+        function forceExport() { closeModal(); generateExcel(); }
+
+        function generateExcel() {
+            const flatData = []; flattenForExport(root, {
+                StrategyNumber: root.children && root.children[0] && root.children[0].data.meta ? root.children[0].data.meta.strategy : "",
+                PreparedBy: root.children && root.children[0] && root.children[0].data.meta ? root.children[0].data.meta.prepared : "",
+                Date: root.children && root.children[0] && root.children[0].data.meta ? root.children[0].data.meta.date : ""
+            }, flatData);
+            
+            // Post-Process for Sparse/Grouped Format
+            const processedData = flatData.map((row, i) => {
+                const newRow = { ...row };
+                if (i > 0) {
+                    const prev = flatData[i-1];
+                    // Check equality chain
+                    let sameSys = row.System === prev.System;
+                    let sameSub = sameSys && row.SubSystem === prev.SubSystem;
+                    let sameComp = sameSub && row.Component === prev.Component;
+                    let sameFail = sameComp && row.FailureMode === prev.FailureMode;
+                    let sameCause = sameFail && row.Cause === prev.Cause;
+
+                    if(sameSys) { newRow.StrategyNumber=""; newRow.System=""; newRow.PreparedBy=""; newRow.Date=""; }
+                    if(sameSub) { newRow.SubSystem=""; newRow.Function=""; }
+                    if(sameComp) { newRow.Component=""; }
+                    if(sameFail) { newRow.FailureMode=""; newRow.Effects=""; }
+                    if(sameCause) { newRow.Cause=""; newRow.Severity=""; newRow.Occurrence=""; newRow.Detection=""; newRow.RPN=""; }
+                }
+                return newRow;
+            });
+
+            const orderedData = processedData.map(row => ({
+                "Strategy Number": row.StrategyNumber || "", "System": row.System || "", "SubSystem": row.SubSystem || "", "Function": row.Function || "",
+                "PreparedBy": row.PreparedBy || "", "Date": row.Date || "", "Component": row.Component || "", "FailureMode": row.FailureMode || "",
+                "Effects": row.Effects || "", "Cause": row.Cause || "", "Severity": row.Severity || "", "Occurrence": row.Occurrence || "",
+                "Detection": row.Detection || "", "RPN": row.RPN || "", "Task": row.Task || "", "TaskDescription": row.TaskDescription || "",
+                "ScheduleType": row.ScheduleType || "", "TaskType": row.TaskType || "", "Interval": row.Interval || "", "AssignedDepartment": row.AssignedDepartment || ""
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(orderedData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "FMEA");
+            XLSX.writeFile(wb, `${currentFileName}_edited.xlsx`);
+        }
+
+        function flattenForExport(node, context, result) {
+            let ctx = { ...context }; const data = node.data;
+            if(data.level === 'system') { 
+                ctx.System = data.name; 
+                if(data.meta) { ctx.StrategyNumber = data.meta.strategy; ctx.PreparedBy = data.meta.prepared; ctx.Date = data.meta.date; }
+            }
+            if(data.level === 'subsystem') { ctx.SubSystem = data.name; ctx.Function = data.function; }
+            if(data.level === 'component') ctx.Component = data.name;
+            if(data.level === 'failure') { ctx.FailureMode = data.name; ctx.Effects = data.effects; }
+            if(data.level === 'cause') { 
+                ctx.Cause = data.name; 
+                if(data.metrics) { ctx.Severity = data.metrics.sev; ctx.Occurrence = data.metrics.occ; ctx.Detection = data.metrics.det; ctx.RPN = data.metrics.rpn; }
+            }
+            if(data.level === 'task') {
+                ctx.Task = data.name; 
+                if(data.taskDetails) { ctx.TaskDescription = data.taskDetails.description; ctx.TaskType = data.taskDetails.type; ctx.ScheduleType = data.taskDetails.schedule; ctx.Interval = data.taskDetails.interval; ctx.AssignedDepartment = data.taskDetails.department; }
+                result.push(ctx); return;
+            }
+            
+            // Fix: Check BOTH visible (children) and hidden (_children) to export full tree
+            const allChildren = (node.children || []).concat(node._children || []);
+
+            if (allChildren.length > 0) {
+                allChildren.forEach(child => flattenForExport(child, ctx, result));
+            } else if (data.level === 'cause' || data.level === 'failure') { 
+                result.push(ctx);
+            }
+        }
     </script>
 </body>
 </html>
